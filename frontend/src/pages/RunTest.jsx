@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { runTest } from "../api/testApi";
 import { getScripts } from "../api/scriptApi";
 import { Play, Settings, CheckCircle } from "lucide-react";
-import ResultCharts from "../components/ResultCharts";
+import ResultCharts from "../components/ResultChart";
 
 export default function RunTest() {
   const [scripts, setScripts] = useState([]);

@@ -1,0 +1,10 @@
+{
+  "id": "230ac9a6-6680-4f14-a378-7cbe346d5e7b",
+  "steps": [
+    {
+      "type": "HTTP",
+      "method": "GET",
+      "url": "http:google.com"
+    }
+  ]
+}

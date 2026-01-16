@@ -15,15 +15,16 @@ import (
 func main() {
 	fmt.Println("🚀 Starting K6 Load Testing Platform...")
 
-	// Initialize generator
-	gen := generator.NewHttpGenerator()
+	// Initialize generators
+	httpGen := generator.NewHttpGenerator()
+	k6JSGen := generator.NewK6JSGenerator()
 
 	// Initialize file-based repositories
 	scriptRepo := repository.NewFileScriptRepository("./scripts")
 	historyRepo := repository.NewFileTestResultRepository("./scripts/results")
 
 	// Initialize services
-	scriptService := service.NewScriptService(gen, scriptRepo)
+	scriptService := service.NewScriptService(httpGen, scriptRepo)
 
 	// Initialize K6 executor
 	k6Executor := engine.NewK6Executor()
@@ -33,10 +34,11 @@ func main() {
 		scriptRepo,
 		historyRepo,
 		k6Executor,
+		k6JSGen,
 	)
 
 	// Initialize handlers
-	scriptHandler := handlers.NewScriptHandler(scriptService)
+	scriptHandler := handlers.NewScriptHandler(scriptService, k6JSGen)
 	testHandler := handlers.NewTestHandler(testService)
 	historyHandler := handlers.NewHistoryHandler(historyRepo)
 

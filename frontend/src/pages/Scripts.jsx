@@ -1,62 +1,171 @@
 import { useEffect, useState } from "react";
 import { getScripts, getK6Script } from "../api/scriptApi";
 import { downloadJS } from "../utils/download";
+import { Code, Download, Eye, Trash2, Play } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 export default function Scripts() {
   const [scripts, setScripts] = useState([]);
   const [selectedScript, setSelectedScript] = useState(null);
+  const [k6Code, setK6Code] = useState("");
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    getScripts().then(res => setScripts(res.data || []));
+    loadScripts();
   }, []);
 
-  const handleView = async (id) => {
-    const res = await getK6Script(id);
-    setSelectedScript(res.data);
+  const loadScripts = async () => {
+    try {
+      setLoading(true);
+      const res = await getScripts();
+      setScripts(res.data || []);
+    } catch (err) {
+      console.error("Failed to load scripts:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleView = async (script) => {
+    try {
+      setSelectedScript(script);
+      const res = await getK6Script(script.id);
+      setK6Code(res.data);
+    } catch (err) {
+      alert("Failed to load K6 script: " + err.message);
+    }
   };
 
   const handleDownload = () => {
-    if (!selectedScript) return;
-    downloadJS(selectedScript);
+    if (!k6Code) return;
+    downloadJS(k6Code, `test-${selectedScript.id.slice(0, 8)}.js`);
   };
 
+  const handleRunTest = (scriptId) => {
+    navigate('/run', { state: { scriptId } });
+  };
+
+  if (loading) {
+    return (
+      <div className="page">
+        <h1 className="page-title">Scripts</h1>
+        <div className="card">
+          <p className="text-muted">Loading scripts...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div style={{ padding: 20 }}>
-      <h2>Saved Scripts</h2>
+    <div className="page">
+      <div className="page-header">
+        <h1 className="page-title">Test Scripts</h1>
+        <button onClick={() => navigate('/create')} className="btn-primary">
+          <Code size={16} />
+          Create New Script
+        </button>
+      </div>
 
-      {scripts.map(s => (
-        <div
-          key={s.id}
-          style={{ border: "1px solid #ccc", margin: 10, padding: 10 }}
-        >
-          <p><b>ID:</b> {s.id}</p>
-          <p><b>Steps:</b> {s.steps.length}</p>
-
-          <button onClick={() => handleView(s.id)}>
-            View k6 Script
+      {scripts.length === 0 ? (
+        <div className="card" style={{ textAlign: 'center', padding: '48px' }}>
+          <Code size={48} style={{ margin: '0 auto 16px', color: '#64748b' }} />
+          <h3 style={{ marginBottom: '8px' }}>No Scripts Yet</h3>
+          <p className="text-muted" style={{ marginBottom: '16px' }}>
+            Create your first test script to get started
+          </p>
+          <button onClick={() => navigate('/create')} className="btn-primary">
+            <Code size={16} />
+            Create Script
           </button>
         </div>
-      ))}
+      ) : (
+        <div className="card-list">
+          {scripts.map((script) => (
+            <div key={script.id} className="card">
+              <div className="card-header">
+                <div>
+                  <h3 style={{ fontSize: '16px', marginBottom: '4px' }}>
+                    Script {script.id.slice(0, 12)}...
+                  </h3>
+                  <p className="text-muted" style={{ fontSize: '13px' }}>
+                    {script.steps.length} step{script.steps.length !== 1 ? 's' : ''}
+                  </p>
+                </div>
+              </div>
 
-      {selectedScript && (
-        <div style={{ marginTop: 20 }}>
-          <h3>Generated k6 Script</h3>
+              {/* Script Steps Preview */}
+              <div style={{ margin: '16px 0', padding: '12px', background: '#0f172a', borderRadius: '6px' }}>
+                {script.steps.slice(0, 3).map((step, i) => (
+                  <div key={i} style={{ 
+                    fontSize: '13px', 
+                    color: '#94a3b8',
+                    marginBottom: i < script.steps.length - 1 ? '8px' : '0'
+                  }}>
+                    <span style={{ 
+                      color: '#2563eb', 
+                      fontWeight: '600',
+                      marginRight: '8px'
+                    }}>
+                      {step.method}
+                    </span>
+                    <span style={{ color: '#e5e7eb' }}>
+                      {step.url.length > 50 ? step.url.slice(0, 50) + '...' : step.url}
+                    </span>
+                  </div>
+                ))}
+                {script.steps.length > 3 && (
+                  <p className="text-muted" style={{ fontSize: '12px', marginTop: '8px' }}>
+                    +{script.steps.length - 3} more steps
+                  </p>
+                )}
+              </div>
 
-          <button onClick={handleDownload}>
-            ⬇ Download k6 Script
-          </button>
+              <div className="card-actions">
+                <button 
+                  onClick={() => handleView(script)} 
+                  className="btn-secondary"
+                >
+                  <Eye size={16} />
+                  View K6 Script
+                </button>
+                <button 
+                  onClick={() => handleRunTest(script.id)} 
+                  className="btn-primary"
+                >
+                  <Play size={16} />
+                  Run Test
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
-          <pre
-            style={{
-              background: "#111",
-              color: "#0f0",
-              padding: 15,
-              marginTop: 10,
-              overflowX: "auto",
-            }}
-          >
-            {selectedScript}
-          </pre>
+      {/* K6 Script Modal */}
+      {selectedScript && k6Code && (
+        <div className="modal-overlay" onClick={() => setSelectedScript(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h2 style={{ fontSize: '20px' }}>
+                Generated K6 Script
+              </h2>
+              <button onClick={handleDownload} className="btn-primary">
+                <Download size={16} />
+                Download
+              </button>
+            </div>
+
+            <div className="script-preview" style={{ maxHeight: '500px', overflow: 'auto' }}>
+              <pre style={{ margin: 0 }}>{k6Code}</pre>
+            </div>
+
+            <div className="modal-actions">
+              <button onClick={() => setSelectedScript(null)} className="btn-secondary">
+                Close
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

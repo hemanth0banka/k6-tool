@@ -2,6 +2,7 @@ package service
 
 import (
 	"k6clone/internal/core/engine"
+	"k6clone/internal/core/generator"
 	"k6clone/internal/core/model"
 	"k6clone/internal/repository"
 )
@@ -10,17 +11,20 @@ type TestService struct {
 	scriptRepo repository.ScriptRepository
 	resultRepo repository.TestResultRepository
 	executor   *engine.K6Executor
+	k6JSGen    *generator.K6JSGenerator
 }
 
 func NewTestService(
 	scriptRepo repository.ScriptRepository,
 	resultRepo repository.TestResultRepository,
 	executor *engine.K6Executor,
+	k6JSGen *generator.K6JSGenerator,
 ) *TestService {
 	return &TestService{
 		scriptRepo: scriptRepo,
 		resultRepo: resultRepo,
 		executor:   executor,
+		k6JSGen:    k6JSGen,
 	}
 }
 

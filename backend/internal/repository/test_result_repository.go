@@ -9,6 +9,7 @@ import (
 type TestResultRepository interface {
 	Save(result model.TestResult)
 	FindAll() []model.TestResult
+	FindByScriptID(scriptID string) []model.TestResult
 }
 
 type MemoryTestResultRepository struct {
@@ -32,4 +33,17 @@ func (r *MemoryTestResultRepository) FindAll() []model.TestResult {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return r.results
+}
+
+func (r *MemoryTestResultRepository) FindByScriptID(scriptID string) []model.TestResult {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	var filtered []model.TestResult
+	for _, result := range r.results {
+		if result.ScriptID == scriptID {
+			filtered = append(filtered, result)
+		}
+	}
+	return filtered
 }

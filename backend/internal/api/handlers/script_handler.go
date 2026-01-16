@@ -3,19 +3,31 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
+
 	"k6clone/internal/core/generator"
+	"k6clone/internal/core/model"
 	"k6clone/internal/service"
 )
 
 type ScriptHandler struct {
 	service *service.ScriptService
+	k6JSGen *generator.K6JSGenerator
 }
 
-func NewScriptHandler(s *service.ScriptService) *ScriptHandler {
-	return &ScriptHandler{service: s}
+func NewScriptHandler(
+	s *service.ScriptService,
+	gen *generator.K6JSGenerator,
+) *ScriptHandler {
+	return &ScriptHandler{
+		service: s,
+		k6JSGen: gen,
+	}
 }
 
-// CreateScript handles POST /scripts
+/*
+POST /scripts
+Body: { "url": "https://example.com" }
+*/
 func (h *ScriptHandler) CreateScript(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -46,7 +58,9 @@ func (h *ScriptHandler) CreateScript(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(script)
 }
 
-// GetAllScripts handles GET /scripts
+/*
+GET /scripts
+*/
 func (h *ScriptHandler) GetAllScripts(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -59,11 +73,24 @@ func (h *ScriptHandler) GetAllScripts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Never return null arrays
+	if scripts == nil {
+		scripts = []*model.Script{}
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(scripts)
 }
 
+/*
+GET /scripts/k6?id=<scriptId>
+*/
 func (h *ScriptHandler) GetK6Script(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
 	id := r.URL.Query().Get("id")
 	if id == "" {
 		http.Error(w, "script id required", http.StatusBadRequest)
@@ -76,14 +103,25 @@ func (h *ScriptHandler) GetK6Script(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	jsGen := generator.NewK6JSGenerator()
-	code, err := jsGen.Generate(script)
+	// ✅ USE GENERATOR CONTRACT — DO NOT REDEFINE INPUT TYPES
+	input := &generator.K6JSInput{
+		Script: script,
+		Config: model.TestConfig{
+			VUs:      10,
+			Duration: 30,
+		},
+	}
+
+	code, err := h.k6JSGen.Generate(input)
 	if err != nil {
-		http.Error(w, "failed to generate script", 500)
+		http.Error(w, "failed to generate k6 script", http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/javascript")
-	w.Header().Set("Content-Disposition", "attachment; filename=test.js")
-	w.Write([]byte(code))
+	// ✅ JSON RESPONSE (frontend-safe)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"code": code,
+	})
 }
+

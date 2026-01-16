@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { getHistory } from "../api/testApi";
-import { getScripts } from "../api/scriptApi";
-import { TrendingUp, Activity, CheckCircle, Clock } from "lucide-react";
+import { TrendingUp, Activity, CheckCircle, Clock, Play, Code } from "lucide-react";
+import { Link } from "react-router-dom";
+
+const API_BASE = "http://localhost:8080";
 
 export default function Dashboard() {
   const [stats, setStats] = useState({
@@ -11,6 +12,7 @@ export default function Dashboard() {
     avgLatency: 0,
   });
   const [recentTests, setRecentTests] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadDashboardData();
@@ -19,14 +21,13 @@ export default function Dashboard() {
   const loadDashboardData = async () => {
     try {
       const [historyRes, scriptsRes] = await Promise.all([
-        getHistory(),
-        getScripts(),
+        fetch(`${API_BASE}/history`).then(r => r.json()),
+        fetch(`${API_BASE}/scripts`).then(r => r.json())
       ]);
 
-      const history = historyRes.data || [];
-      const scripts = scriptsRes.data || [];
+      const history = historyRes || [];
+      const scripts = scriptsRes || [];
 
-      // Calculate stats
       const totalTests = history.length;
       const totalRequests = history.reduce((sum, t) => sum + t.totalRequests, 0);
       const totalSuccess = history.reduce((sum, t) => sum + t.success, 0);
@@ -44,15 +45,36 @@ export default function Dashboard() {
       setRecentTests(history.slice(0, 5));
     } catch (err) {
       console.error("Failed to load dashboard:", err);
+    } finally {
+      setLoading(false);
     }
   };
 
+  if (loading) {
+    return (
+      <div className="page">
+        <h1 className="page-title">Dashboard</h1>
+        <div className="card">
+          <p className="text-muted">Loading dashboard data...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="page dashboard-page">
-      <h1 className="page-title">Dashboard</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+        <h1 className="page-title" style={{ marginBottom: 0 }}>Dashboard</h1>
+        <Link to="/run">
+          <button className="btn-primary">
+            <Play size={16} />
+            Run New Test
+          </button>
+        </Link>
+      </div>
 
       {/* Stats Grid */}
-      <div className="stats-grid">
+      <div className="stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginBottom: '32px' }}>
         <StatCard
           icon={Activity}
           label="Total Tests"
@@ -75,7 +97,7 @@ export default function Dashboard() {
           color="purple"
         />
         <StatCard
-          icon={TrendingUp}
+          icon={Code}
           label="Active Scripts"
           value={stats.totalScripts}
           trend="+3"
@@ -85,32 +107,64 @@ export default function Dashboard() {
 
       {/* Recent Tests */}
       <div className="card">
-        <h2 className="card-title">Recent Test Runs</h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <h2 className="card-title" style={{ marginBottom: 0 }}>Recent Test Runs</h2>
+          <Link to="/history">
+            <button className="btn-secondary" style={{ fontSize: '14px', padding: '8px 16px' }}>
+              View All
+            </button>
+          </Link>
+        </div>
         
         {recentTests.length === 0 ? (
-          <p className="text-muted">No tests run yet. Start by creating a script!</p>
+          <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+            <Activity size={48} className="text-muted" style={{ margin: '0 auto 16px' }} />
+            <p className="text-muted">No tests run yet. Start by creating a script!</p>
+            <Link to="/create">
+              <button className="btn-primary" style={{ marginTop: '16px' }}>
+                <Code size={16} />
+                Create Script
+              </button>
+            </Link>
+          </div>
         ) : (
           <div className="test-list">
             {recentTests.map((test, i) => (
-              <div key={i} className="test-item">
-                <div className="test-info">
-                  <div className="test-status success"></div>
+              <div key={i} className="test-item" style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '16px',
+                background: '#0f172a',
+                borderRadius: '8px',
+                marginBottom: '8px',
+                border: '1px solid #334155'
+              }}>
+                <div className="test-info" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div className="test-status success" style={{
+                    width: '12px',
+                    height: '12px',
+                    borderRadius: '50%',
+                    background: test.failure === 0 ? '#22c55e' : '#ef4444'
+                  }}></div>
                   <div>
-                    <h3>Script: {test.scriptId.slice(0, 8)}...</h3>
-                    <p className="text-muted">
+                    <h3 style={{ fontSize: '14px', marginBottom: '4px' }}>
+                      Script: {test.scriptId.slice(0, 8)}...
+                    </h3>
+                    <p className="text-muted" style={{ fontSize: '12px' }}>
                       {new Date(test.startedAt).toLocaleString()}
                     </p>
                   </div>
                 </div>
                 
-                <div className="test-metrics">
-                  <span className="metric">
+                <div className="test-metrics" style={{ display: 'flex', gap: '24px' }}>
+                  <span className="metric" style={{ fontSize: '14px' }}>
                     <strong>{test.totalRequests}</strong> requests
                   </span>
-                  <span className="metric">
+                  <span className="metric" style={{ fontSize: '14px', color: '#22c55e' }}>
                     <strong>{test.success}</strong> success
                   </span>
-                  <span className="metric">
+                  <span className="metric" style={{ fontSize: '14px' }}>
                     <strong>{test.avgLatencyMs}ms</strong> avg
                   </span>
                 </div>
@@ -121,9 +175,9 @@ export default function Dashboard() {
       </div>
 
       {/* Quick Actions */}
-      <div className="quick-actions">
-        <h2>Quick Start</h2>
-        <div className="action-grid">
+      <div className="quick-actions" style={{ marginTop: '32px' }}>
+        <h2 style={{ marginBottom: '16px' }}>Quick Start</h2>
+        <div className="action-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
           <ActionCard
             emoji="💨"
             title="Smoke Test"
@@ -159,31 +213,68 @@ export default function Dashboard() {
 }
 
 function StatCard({ icon: Icon, label, value, trend, color }) {
+  const colorMap = {
+    blue: '#3b82f6',
+    green: '#22c55e',
+    purple: '#8b5cf6',
+    orange: '#f97316'
+  };
+
   return (
-    <div className={`stat-card stat-${color}`}>
-      <div className="stat-header">
-        <span className="stat-label">{label}</span>
-        <div className="stat-icon">
+    <div className="stat-card" style={{
+      background: '#1e293b',
+      border: '1px solid #334155',
+      borderRadius: '12px',
+      padding: '20px',
+      position: 'relative',
+      overflow: 'hidden'
+    }}>
+      <div style={{
+        position: 'absolute',
+        top: '-20px',
+        right: '-20px',
+        width: '100px',
+        height: '100px',
+        borderRadius: '50%',
+        background: colorMap[color],
+        opacity: 0.1
+      }}></div>
+      <div className="stat-header" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+        <span className="stat-label" style={{ color: '#94a3b8', fontSize: '14px' }}>{label}</span>
+        <div className="stat-icon" style={{ color: colorMap[color] }}>
           <Icon size={20} />
         </div>
       </div>
-      <div className="stat-value">{value}</div>
-      <div className="stat-trend">{trend}</div>
+      <div className="stat-value" style={{ fontSize: '32px', fontWeight: 'bold', marginBottom: '4px' }}>{value}</div>
+      <div className="stat-trend" style={{ fontSize: '12px', color: '#22c55e' }}>{trend}</div>
     </div>
   );
 }
 
 function ActionCard({ emoji, title, description, vus, duration }) {
   return (
-    <div className="action-card">
-      <div className="action-emoji">{emoji}</div>
-      <h3>{title}</h3>
-      <p>{description}</p>
-      <div className="action-params">
-        <span>{vus} VUs</span>
-        <span>{duration}</span>
+    <Link to="/run" style={{ textDecoration: 'none' }}>
+      <div className="action-card" style={{
+        background: '#1e293b',
+        border: '1px solid #334155',
+        borderRadius: '12px',
+        padding: '20px',
+        cursor: 'pointer',
+        transition: 'all 0.2s',
+        ':hover': {
+          borderColor: '#2563eb',
+          transform: 'translateY(-2px)'
+        }
+      }}>
+        <div className="action-emoji" style={{ fontSize: '32px', marginBottom: '12px' }}>{emoji}</div>
+        <h3 style={{ fontSize: '16px', marginBottom: '8px', color: '#f9fafb' }}>{title}</h3>
+        <p style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '12px' }}>{description}</p>
+        <div className="action-params" style={{ display: 'flex', gap: '12px', fontSize: '12px', color: '#64748b' }}>
+          <span>{vus} VUs</span>
+          <span>•</span>
+          <span>{duration}</span>
+        </div>
       </div>
-      <button className="btn-secondary">Start Test</button>
-    </div>
+    </Link>
   );
 }
