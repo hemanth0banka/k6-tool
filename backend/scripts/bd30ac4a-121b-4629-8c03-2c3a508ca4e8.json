@@ -1,0 +1,10 @@
+{
+  "id": "bd30ac4a-121b-4629-8c03-2c3a508ca4e8",
+  "steps": [
+    {
+      "type": "HTTP",
+      "method": "GET",
+      "url": "http://localhost:5174"
+    }
+  ]
+}
