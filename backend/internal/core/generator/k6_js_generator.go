@@ -66,3 +66,4 @@ export default function () {
 
 	return buf.String(), err
 }
+

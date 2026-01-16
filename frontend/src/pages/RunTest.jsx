@@ -1,98 +1,219 @@
 import { useEffect, useState } from "react";
 import { runTest } from "../api/testApi";
 import { getScripts } from "../api/scriptApi";
-import ResultCharts from "./ResultCharts";"./ResultCharts"
+import { Play, Settings, CheckCircle } from "lucide-react";
+import ResultCharts from "../components/ResultCharts";
 
 export default function RunTest() {
   const [scripts, setScripts] = useState([]);
-  const [scriptId, setScriptId] = useState("");
-  const [type, setType] = useState("load");
+  const [selectedScript, setSelectedScript] = useState("");
+  
+  // Basic Config
+  const [testType, setTestType] = useState("load");
   const [vus, setVus] = useState(10);
-  const [duration, setDuration] = useState(10);
+  const [duration, setDuration] = useState(30);
+  
+  // Advanced Config
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [thresholds, setThresholds] = useState([
+    "http_req_duration: ['p(95)<500']",
+    "http_req_failed: ['rate<0.1']",
+  ]);
+  
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState(0);
 
-  // 🔹 Load scripts for dropdown
   useEffect(() => {
-    getScripts().then(res => setScripts(res.data || []));
+    loadScripts();
   }, []);
 
-  const run = async () => {
-    if (!scriptId) {
+  const loadScripts = async () => {
+    try {
+      const res = await getScripts();
+      setScripts(res.data || []);
+    } catch (err) {
+      console.error("Failed to load scripts:", err);
+    }
+  };
+
+  const startTest = async () => {
+    if (!selectedScript) {
       alert("Please select a script");
       return;
     }
 
     setLoading(true);
+    setProgress(0);
+    setResult(null);
+
+    // Simulate progress
+    const progressInterval = setInterval(() => {
+      setProgress((prev) => Math.min(prev + 5, 95));
+    }, 500);
+
     try {
-      const res = await runTest({
-        scriptId,
-        type,
+      const config = {
+        scriptId: selectedScript,
+        type: testType,
         vus: Number(vus),
         duration: Number(duration),
-      });
+      };
+
+      const res = await runTest(config);
       setResult(res.data);
+      setProgress(100);
     } catch (err) {
-      console.error(err.response?.data || err.message);
+      alert("Test failed: " + (err.response?.data || err.message));
     } finally {
+      clearInterval(progressInterval);
       setLoading(false);
     }
   };
 
   return (
-    <div style={{ padding: 20 }}>
-      <h2>Run Test</h2>
+    <div className="page">
+      <h1 className="page-title">Run Load Test</h1>
 
-      {/* ✅ SCRIPT DROPDOWN */}
-      <select
-        value={scriptId}
-        onChange={e => setScriptId(e.target.value)}
-        style={{ display: "block", marginBottom: 10 }}
-      >
-        <option value="">Select Script</option>
-        {scripts.map(s => (
-          <option key={s.id} value={s.id}>
-            {s.id.slice(0, 8)}... ({s.steps.length} steps)
-          </option>
-        ))}
-      </select>
+      {/* Test Configuration */}
+      <div className="card">
+        <h2 className="card-title">
+          <Settings size={20} />
+          Test Configuration
+        </h2>
 
-      {/* Test type */}
-      <select value={type} onChange={e => setType(e.target.value)}>
-        <option value="smoke">Smoke</option>
-        <option value="load">Load</option>
-        <option value="stress">Stress</option>
-        <option value="spike">Spike</option>
-      </select>
+        {/* Script Selection */}
+        <div className="form-group">
+          <label>Select Script</label>
+          <select
+            value={selectedScript}
+            onChange={(e) => setSelectedScript(e.target.value)}
+            className="input-primary"
+          >
+            <option value="">Choose a script...</option>
+            {scripts.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.id.slice(0, 8)}... ({s.steps.length} steps)
+              </option>
+            ))}
+          </select>
+        </div>
 
-      <input
-        type="number"
-        value={vus}
-        onChange={e => setVus(e.target.value)}
-        placeholder="VUs"
-      />
+        {/* Test Type */}
+        <div className="form-group">
+          <label>Test Type</label>
+          <div className="test-type-grid">
+            {["smoke", "load", "stress", "spike", "soak"].map((type) => (
+              <button
+                key={type}
+                onClick={() => setTestType(type)}
+                className={`test-type-btn ${testType === type ? "active" : ""}`}
+              >
+                {type.charAt(0).toUpperCase() + type.slice(1)}
+              </button>
+            ))}
+          </div>
+        </div>
 
-      <input
-        type="number"
-        value={duration}
-        onChange={e => setDuration(e.target.value)}
-        placeholder="Duration (sec)"
-      />
+        {/* Basic Settings */}
+        <div className="form-row">
+          <div className="form-group">
+            <label>Virtual Users (VUs)</label>
+            <input
+              type="number"
+              value={vus}
+              onChange={(e) => setVus(e.target.value)}
+              min="1"
+              max="1000"
+              className="input-primary"
+            />
+          </div>
 
-      <button onClick={run} disabled={loading}>
-        {loading ? "Running..." : "Run Test"}
-      </button>
+          <div className="form-group">
+            <label>Duration (seconds)</label>
+            <input
+              type="number"
+              value={duration}
+              onChange={(e) => setDuration(e.target.value)}
+              min="1"
+              max="3600"
+              className="input-primary"
+            />
+          </div>
+        </div>
 
-      {result && (
-        <div style={{ marginTop: 20 }}>
-          <h3>Test Result</h3>
-          <p>Total Requests: {result.totalRequests}</p>
-          <p>Success: {result.success}</p>
-          <p>Failure: {result.failure}</p>
-          <p>Avg Latency: {result.avgLatencyMs} ms</p>
+        {/* Advanced Settings Toggle */}
+        <button
+          onClick={() => setShowAdvanced(!showAdvanced)}
+          className="btn-link"
+        >
+          {showAdvanced ? "Hide" : "Show"} Advanced Options
+        </button>
+
+        {showAdvanced && (
+          <div className="advanced-options">
+            <h3>Thresholds</h3>
+            {thresholds.map((threshold, i) => (
+              <div key={i} className="threshold-item">
+                <input
+                  type="text"
+                  value={threshold}
+                  onChange={(e) => {
+                    const newThresholds = [...thresholds];
+                    newThresholds[i] = e.target.value;
+                    setThresholds(newThresholds);
+                  }}
+                  className="input-primary"
+                />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Run Button */}
+        <button
+          onClick={startTest}
+          disabled={loading || !selectedScript}
+          className="btn-primary btn-lg"
+        >
+          {loading ? (
+            <>Running Test... {progress}%</>
+          ) : (
+            <>
+              <Play size={16} />
+              Run Test
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* Progress Bar */}
+      {loading && (
+        <div className="card">
+          <h3>Test in Progress</h3>
+          <div className="progress-bar">
+            <div
+              className="progress-fill"
+              style={{ width: `${progress}%` }}
+            ></div>
+          </div>
+          <p className="text-center text-muted">
+            Running {vus} VUs for {duration}s...
+          </p>
         </div>
       )}
-      {result && <ResultCharts result={result} />}
+
+      {/* Results */}
+      {result && (
+        <div className="card">
+          <h2 className="card-title">
+            <CheckCircle size={20} className="text-success" />
+            Test Results
+          </h2>
+
+          <ResultCharts result={result} />
+        </div>
+      )}
     </div>
   );
 }

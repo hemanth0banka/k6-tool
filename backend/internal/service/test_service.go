@@ -9,36 +9,51 @@ import (
 type TestService struct {
 	scriptRepo repository.ScriptRepository
 	resultRepo repository.TestResultRepository
-	engine     *engine.LoadEngine
+	executor   *engine.K6Executor
 }
 
-// ✅ FIXED CONSTRUCTOR (3 args)
 func NewTestService(
 	scriptRepo repository.ScriptRepository,
 	resultRepo repository.TestResultRepository,
-	engine *engine.LoadEngine,
+	executor *engine.K6Executor,
 ) *TestService {
 	return &TestService{
 		scriptRepo: scriptRepo,
 		resultRepo: resultRepo,
-		engine:     engine,
+		executor:   executor,
 	}
 }
 
 func (s *TestService) RunTest(config model.TestConfig) (model.TestResult, error) {
+	// 1. Retrieve the script
 	script, err := s.scriptRepo.FindByID(config.ScriptID)
 	if err != nil {
 		return model.TestResult{}, err
 	}
 
+	// 2. Validate the script
 	if err := ValidateScript(script); err != nil {
 		return model.TestResult{}, err
 	}
 
-	result := s.engine.Run(script, config)
+	// 3. Execute the test using K6
+	result, err := s.executor.Run(script, config)
+	if err != nil {
+		return model.TestResult{}, err
+	}
 
-	// ✅ history persistence
+	// 4. Save the result
 	s.resultRepo.Save(result)
 
 	return result, nil
+}
+
+// GetTestHistory retrieves all test results
+func (s *TestService) GetTestHistory() []model.TestResult {
+	return s.resultRepo.FindAll()
+}
+
+// GetScriptHistory retrieves test results for a specific script
+func (s *TestService) GetScriptHistory(scriptID string) []model.TestResult {
+	return s.resultRepo.FindByScriptID(scriptID)
 }
