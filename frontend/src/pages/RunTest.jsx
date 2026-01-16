@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { runTest } from "../api/testApi";
 import { getScripts } from "../api/scriptApi";
-import { Play, Settings, CheckCircle } from "lucide-react";
+import { Play, Settings, CheckCircle, AlertCircle } from "lucide-react";
 import ResultCharts from "../components/ResultChart";
 
 export default function RunTest() {
+  const location = useLocation();
   const [scripts, setScripts] = useState([]);
   const [selectedScript, setSelectedScript] = useState("");
   
@@ -23,17 +25,25 @@ export default function RunTest() {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     loadScripts();
-  }, []);
+    
+    // Check if script was passed via navigation state
+    if (location.state?.scriptId) {
+      setSelectedScript(location.state.scriptId);
+    }
+  }, [location.state]);
 
   const loadScripts = async () => {
     try {
-      const res = await getScripts();
-      setScripts(res.data || []);
+      const scriptsData = await getScripts(); // Returns array directly
+      console.log('Loaded scripts for test:', scriptsData);
+      setScripts(scriptsData || []);
     } catch (err) {
       console.error("Failed to load scripts:", err);
+      setError("Failed to load scripts: " + err.message);
     }
   };
 
@@ -46,6 +56,7 @@ export default function RunTest() {
     setLoading(true);
     setProgress(0);
     setResult(null);
+    setError(null);
 
     // Simulate progress
     const progressInterval = setInterval(() => {
@@ -60,11 +71,15 @@ export default function RunTest() {
         duration: Number(duration),
       };
 
-      const res = await runTest(config);
-      setResult(res.data);
+      console.log('Running test with config:', config);
+      const testResult = await runTest(config); // Returns result directly
+      console.log('Test result:', testResult);
+      setResult(testResult);
       setProgress(100);
     } catch (err) {
-      alert("Test failed: " + (err.response?.data || err.message));
+      console.error('Test failed:', err);
+      setError(err.message);
+      alert("Test failed: " + err.message);
     } finally {
       clearInterval(progressInterval);
       setLoading(false);
@@ -74,6 +89,15 @@ export default function RunTest() {
   return (
     <div className="page">
       <h1 className="page-title">Run Load Test</h1>
+
+      {error && (
+        <div className="card" style={{ background: 'rgba(220, 38, 38, 0.1)', border: '1px solid #dc2626', marginBottom: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <AlertCircle size={20} style={{ color: '#dc2626' }} />
+            <span style={{ color: '#dc2626' }}>{error}</span>
+          </div>
+        </div>
+      )}
 
       {/* Test Configuration */}
       <div className="card">

@@ -27,14 +27,14 @@ func main() {
 	scriptService := service.NewScriptService(httpGen, scriptRepo)
 
 	// Initialize K6 executor
-	k6Executor := engine.NewK6Executor()
+	loadEngine := engine.NewLoadEngine()
+
 
 	// Initialize test service with K6 executor
 	testService := service.NewTestService(
 		scriptRepo,
 		historyRepo,
-		k6Executor,
-		k6JSGen,
+		loadEngine,
 	)
 
 	// Initialize handlers
@@ -52,8 +52,30 @@ func main() {
 			scriptHandler.CreateScript(w, r)
 		case http.MethodGet:
 			scriptHandler.GetAllScripts(w, r)
+		case http.MethodOptions:
+			w.WriteHeader(http.StatusOK)
 		default:
-			w.WriteHeader(http.StatusMethodNotAllowed)
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+
+	// Get single script by ID
+	mux.HandleFunc("/scripts/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/scripts/" {
+			http.Error(w, "Script ID required", http.StatusBadRequest)
+			return
+		}
+		
+		// Extract ID from path
+		scriptID := r.URL.Path[len("/scripts/"):]
+		
+		switch r.Method {
+		case http.MethodGet:
+			scriptHandler.GetScriptByID(w, r, scriptID)
+		case http.MethodOptions:
+			w.WriteHeader(http.StatusOK)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	})
 
@@ -61,10 +83,28 @@ func main() {
 	mux.HandleFunc("/scripts/k6", scriptHandler.GetK6Script)
 
 	// Run test
-	mux.HandleFunc("/tests/run", testHandler.RunTest)
+	mux.HandleFunc("/tests/run", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			testHandler.RunTest(w, r)
+		case http.MethodOptions:
+			w.WriteHeader(http.StatusOK)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
 
 	// Test history
-	mux.HandleFunc("/history", historyHandler.GetHistory)
+	mux.HandleFunc("/history", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			historyHandler.GetHistory(w, r)
+		case http.MethodOptions:
+			w.WriteHeader(http.StatusOK)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
 
 	// Health check
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -79,6 +119,7 @@ func main() {
 	fmt.Println("\n📖 API Endpoints:")
 	fmt.Println("   POST   /scripts       - Create new test script")
 	fmt.Println("   GET    /scripts       - List all scripts")
+	fmt.Println("   GET    /scripts/:id   - Get specific script")
 	fmt.Println("   GET    /scripts/k6    - Get k6 JavaScript for script")
 	fmt.Println("   POST   /tests/run     - Execute load test")
 	fmt.Println("   GET    /history       - View test history")

@@ -2,7 +2,6 @@ package service
 
 import (
 	"k6clone/internal/core/engine"
-	"k6clone/internal/core/generator"
 	"k6clone/internal/core/model"
 	"k6clone/internal/repository"
 )
@@ -10,21 +9,18 @@ import (
 type TestService struct {
 	scriptRepo repository.ScriptRepository
 	resultRepo repository.TestResultRepository
-	executor   *engine.K6Executor
-	k6JSGen    *generator.K6JSGenerator
+	engine     *engine.LoadEngine
 }
 
 func NewTestService(
 	scriptRepo repository.ScriptRepository,
 	resultRepo repository.TestResultRepository,
-	executor *engine.K6Executor,
-	k6JSGen *generator.K6JSGenerator,
+	engine *engine.LoadEngine,
 ) *TestService {
 	return &TestService{
 		scriptRepo: scriptRepo,
 		resultRepo: resultRepo,
-		executor:   executor,
-		k6JSGen:    k6JSGen,
+		engine:     engine,
 	}
 }
 
@@ -41,10 +37,7 @@ func (s *TestService) RunTest(config model.TestConfig) (model.TestResult, error)
 	}
 
 	// 3. Execute the test using K6
-	result, err := s.executor.Run(script, config)
-	if err != nil {
-		return model.TestResult{}, err
-	}
+	result := s.engine.Run(script, config)
 
 	// 4. Save the result
 	s.resultRepo.Save(result)

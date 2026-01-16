@@ -6,6 +6,7 @@ export default function History() {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all"); // all, success, failure
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     loadHistory();
@@ -14,10 +15,13 @@ export default function History() {
   const loadHistory = async () => {
     try {
       setLoading(true);
-      const res = await getHistory();
-      setHistory(res.data || []);
+      setError(null);
+      const historyData = await getHistory(); // Returns array directly
+      console.log('Loaded history:', historyData);
+      setHistory(historyData || []);
     } catch (err) {
       console.error("Failed to load history:", err);
+      setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -38,6 +42,20 @@ export default function History() {
         <h1 className="page-title">Test History</h1>
         <div className="card">
           <p className="text-muted">Loading history...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="page">
+        <h1 className="page-title">Test History</h1>
+        <div className="card">
+          <p style={{ color: '#dc2626' }}>Error: {error}</p>
+          <button onClick={loadHistory} className="btn-primary" style={{ marginTop: '16px' }}>
+            Retry
+          </button>
         </div>
       </div>
     );
@@ -100,6 +118,10 @@ export default function History() {
             ? ((test.success / test.totalRequests) * 100).toFixed(1)
             : 0;
           
+          // Handle both camelCase and PascalCase from backend
+          const testId = test.testId || test.testID || 'unknown';
+          const scriptId = test.scriptId || test.scriptID || 'unknown';
+          
           return (
             <div key={index} className="card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '16px' }}>
@@ -111,11 +133,11 @@ export default function History() {
                       <XCircle size={20} style={{ color: '#dc2626' }} />
                     )}
                     <h3 style={{ fontSize: '16px', color: '#f9fafb' }}>
-                      Test {test.testId || test.testID}
+                      Test {testId}
                     </h3>
                   </div>
                   <p className="text-muted" style={{ fontSize: '13px' }}>
-                    Script: {(test.scriptId || test.scriptID).slice(0, 12)}...
+                    Script: {scriptId.slice(0, 12)}...
                   </p>
                   <p className="text-muted" style={{ fontSize: '13px' }}>
                     {new Date(test.startedAt).toLocaleString()}

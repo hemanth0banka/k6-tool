@@ -9,6 +9,7 @@ export default function Scripts() {
   const [selectedScript, setSelectedScript] = useState(null);
   const [k6Code, setK6Code] = useState("");
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -18,10 +19,13 @@ export default function Scripts() {
   const loadScripts = async () => {
     try {
       setLoading(true);
-      const res = await getScripts();
-      setScripts(res.data || []);
+      setError(null);
+      const scriptsData = await getScripts(); // Returns array directly
+      console.log('Loaded scripts:', scriptsData);
+      setScripts(scriptsData || []);
     } catch (err) {
       console.error("Failed to load scripts:", err);
+      setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -30,8 +34,8 @@ export default function Scripts() {
   const handleView = async (script) => {
     try {
       setSelectedScript(script);
-      const res = await getK6Script(script.id);
-      setK6Code(res.data);
+      const code = await getK6Script(script.id); // Returns text directly
+      setK6Code(code);
     } catch (err) {
       alert("Failed to load K6 script: " + err.message);
     }
@@ -52,6 +56,20 @@ export default function Scripts() {
         <h1 className="page-title">Scripts</h1>
         <div className="card">
           <p className="text-muted">Loading scripts...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="page">
+        <h1 className="page-title">Scripts</h1>
+        <div className="card">
+          <p style={{ color: '#dc2626' }}>Error: {error}</p>
+          <button onClick={loadScripts} className="btn-primary" style={{ marginTop: '16px' }}>
+            Retry
+          </button>
         </div>
       </div>
     );
@@ -100,7 +118,7 @@ export default function Scripts() {
                   <div key={i} style={{ 
                     fontSize: '13px', 
                     color: '#94a3b8',
-                    marginBottom: i < script.steps.length - 1 ? '8px' : '0'
+                    marginBottom: i < Math.min(script.steps.length, 3) - 1 ? '8px' : '0'
                   }}>
                     <span style={{ 
                       color: '#2563eb', 

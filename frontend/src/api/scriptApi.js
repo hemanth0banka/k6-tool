@@ -6,14 +6,17 @@ export const createScript = async (url) => {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ url })
   });
-  if (!response.ok) throw new Error('Failed to create script');
-  return response.json();
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(error || 'Failed to create script');
+  }
+  return response.json(); // Returns script directly, not wrapped in {data}
 };
 
 export const getScripts = async () => {
   const response = await fetch(`${API_BASE}/scripts`);
   if (!response.ok) throw new Error('Failed to fetch scripts');
-  return response.json();
+  return response.json(); // Returns array directly
 };
 
 export const getScript = async (scriptId) => {
@@ -41,13 +44,9 @@ export const deleteScript = async (scriptId) => {
 };
 
 export const getK6Script = async (scriptId) => {
-  const response = await fetch(`${API_BASE}/scripts/k6?id=${scriptId}`, {
-    headers: {
-      'Accept': 'text/plain'
-    }
-  });
+  const response = await fetch(`${API_BASE}/scripts/k6?id=${scriptId}`);
   if (!response.ok) throw new Error('Failed to fetch k6 script');
-  return response.text();
+  return response.text(); // Returns plain text
 };
 
 export const validateScript = async (script) => {
@@ -59,4 +58,3 @@ export const validateScript = async (script) => {
   if (!response.ok) throw new Error('Failed to validate script');
   return response.json();
 };
-

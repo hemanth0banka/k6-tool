@@ -25,5 +25,11 @@ type TestResult struct {
 	Success       int       `json:"success"`
 	Failure       int       `json:"failure"`
 	AvgLatencyMs  int64     `json:"avgLatencyMs"`
+	P90LatencyMs  int64     `json:"p90LatencyMs"`
+	P95LatencyMs  int64     `json:"p95LatencyMs"`
+	P99LatencyMs  int64     `json:"p99LatencyMs"`
+	RPS           float64   `json:"rps"`
+	Iterations    int       `json:"iterations"`
 	StartedAt     time.Time `json:"startedAt"`
 }
+

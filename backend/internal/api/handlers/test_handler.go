@@ -24,7 +24,21 @@ func (h *TestHandler) RunTest(w http.ResponseWriter, r *http.Request) {
 
 	var config model.TestConfig
 	if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
-		http.Error(w, "invalid request", http.StatusBadRequest)
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Validate config
+	if config.ScriptID == "" {
+		http.Error(w, "scriptId is required", http.StatusBadRequest)
+		return
+	}
+	if config.VUs <= 0 {
+		http.Error(w, "vus must be greater than 0", http.StatusBadRequest)
+		return
+	}
+	if config.Duration <= 0 {
+		http.Error(w, "duration must be greater than 0", http.StatusBadRequest)
 		return
 	}
 

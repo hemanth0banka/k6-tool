@@ -10,13 +10,13 @@ export const runTest = async (config) => {
     const error = await response.text();
     throw new Error(error || 'Test failed');
   }
-  return response.json();
+  return response.json(); // Returns result directly
 };
 
 export const getHistory = async () => {
   const response = await fetch(`${API_BASE}/history`);
   if (!response.ok) throw new Error('Failed to fetch history');
-  return response.json();
+  return response.json(); // Returns array directly
 };
 
 export const getTestResult = async (testId) => {

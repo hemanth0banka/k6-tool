@@ -83,7 +83,27 @@ func (h *ScriptHandler) GetAllScripts(w http.ResponseWriter, r *http.Request) {
 }
 
 /*
+GET /scripts/:id
+*/
+func (h *ScriptHandler) GetScriptByID(w http.ResponseWriter, r *http.Request, id string) {
+	if id == "" {
+		http.Error(w, "script id required", http.StatusBadRequest)
+		return
+	}
+
+	script, err := h.service.GetByID(id)
+	if err != nil {
+		http.Error(w, "script not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(script)
+}
+
+/*
 GET /scripts/k6?id=<scriptId>
+Returns plain text k6 script
 */
 func (h *ScriptHandler) GetK6Script(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
@@ -103,7 +123,7 @@ func (h *ScriptHandler) GetK6Script(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ✅ USE GENERATOR CONTRACT — DO NOT REDEFINE INPUT TYPES
+	// Generate k6 script
 	input := &generator.K6JSInput{
 		Script: script,
 		Config: model.TestConfig{
@@ -118,10 +138,7 @@ func (h *ScriptHandler) GetK6Script(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ✅ JSON RESPONSE (frontend-safe)
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
-		"code": code,
-	})
+	// Return as plain text
+	w.Header().Set("Content-Type", "text/plain")
+	w.Write([]byte(code))
 }
-

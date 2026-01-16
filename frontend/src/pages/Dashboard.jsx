@@ -13,6 +13,7 @@ export default function Dashboard() {
   });
   const [recentTests, setRecentTests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     loadDashboardData();
@@ -20,19 +21,25 @@ export default function Dashboard() {
 
   const loadDashboardData = async () => {
     try {
+      setLoading(true);
+      setError(null);
+      
       const [historyRes, scriptsRes] = await Promise.all([
         fetch(`${API_BASE}/history`).then(r => r.json()),
         fetch(`${API_BASE}/scripts`).then(r => r.json())
       ]);
 
+      // Both endpoints return data directly
       const history = historyRes || [];
       const scripts = scriptsRes || [];
 
+      console.log('Dashboard data:', { history, scripts });
+
       const totalTests = history.length;
-      const totalRequests = history.reduce((sum, t) => sum + t.totalRequests, 0);
-      const totalSuccess = history.reduce((sum, t) => sum + t.success, 0);
+      const totalRequests = history.reduce((sum, t) => sum + (t.totalRequests || 0), 0);
+      const totalSuccess = history.reduce((sum, t) => sum + (t.success || 0), 0);
       const avgLatency = history.length > 0
-        ? history.reduce((sum, t) => sum + t.avgLatencyMs, 0) / history.length
+        ? history.reduce((sum, t) => sum + (t.avgLatencyMs || 0), 0) / history.length
         : 0;
 
       setStats({
@@ -45,6 +52,7 @@ export default function Dashboard() {
       setRecentTests(history.slice(0, 5));
     } catch (err) {
       console.error("Failed to load dashboard:", err);
+      setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -56,6 +64,20 @@ export default function Dashboard() {
         <h1 className="page-title">Dashboard</h1>
         <div className="card">
           <p className="text-muted">Loading dashboard data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="page">
+        <h1 className="page-title">Dashboard</h1>
+        <div className="card">
+          <p style={{ color: '#dc2626' }}>Error: {error}</p>
+          <button onClick={loadDashboardData} className="btn-primary" style={{ marginTop: '16px' }}>
+            Retry
+          </button>
         </div>
       </div>
     );
@@ -129,47 +151,50 @@ export default function Dashboard() {
           </div>
         ) : (
           <div className="test-list">
-            {recentTests.map((test, i) => (
-              <div key={i} className="test-item" style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                padding: '16px',
-                background: '#0f172a',
-                borderRadius: '8px',
-                marginBottom: '8px',
-                border: '1px solid #334155'
-              }}>
-                <div className="test-info" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div className="test-status success" style={{
-                    width: '12px',
-                    height: '12px',
-                    borderRadius: '50%',
-                    background: test.failure === 0 ? '#22c55e' : '#ef4444'
-                  }}></div>
-                  <div>
-                    <h3 style={{ fontSize: '14px', marginBottom: '4px' }}>
-                      Script: {test.scriptId.slice(0, 8)}...
-                    </h3>
-                    <p className="text-muted" style={{ fontSize: '12px' }}>
-                      {new Date(test.startedAt).toLocaleString()}
-                    </p>
+            {recentTests.map((test, i) => {
+              const scriptId = test.scriptId || test.scriptID || 'unknown';
+              return (
+                <div key={i} className="test-item" style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '16px',
+                  background: '#0f172a',
+                  borderRadius: '8px',
+                  marginBottom: '8px',
+                  border: '1px solid #334155'
+                }}>
+                  <div className="test-info" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div className="test-status success" style={{
+                      width: '12px',
+                      height: '12px',
+                      borderRadius: '50%',
+                      background: test.failure === 0 ? '#22c55e' : '#ef4444'
+                    }}></div>
+                    <div>
+                      <h3 style={{ fontSize: '14px', marginBottom: '4px' }}>
+                        Script: {scriptId.slice(0, 8)}...
+                      </h3>
+                      <p className="text-muted" style={{ fontSize: '12px' }}>
+                        {new Date(test.startedAt).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="test-metrics" style={{ display: 'flex', gap: '24px' }}>
+                    <span className="metric" style={{ fontSize: '14px' }}>
+                      <strong>{test.totalRequests}</strong> requests
+                    </span>
+                    <span className="metric" style={{ fontSize: '14px', color: '#22c55e' }}>
+                      <strong>{test.success}</strong> success
+                    </span>
+                    <span className="metric" style={{ fontSize: '14px' }}>
+                      <strong>{test.avgLatencyMs}ms</strong> avg
+                    </span>
                   </div>
                 </div>
-                
-                <div className="test-metrics" style={{ display: 'flex', gap: '24px' }}>
-                  <span className="metric" style={{ fontSize: '14px' }}>
-                    <strong>{test.totalRequests}</strong> requests
-                  </span>
-                  <span className="metric" style={{ fontSize: '14px', color: '#22c55e' }}>
-                    <strong>{test.success}</strong> success
-                  </span>
-                  <span className="metric" style={{ fontSize: '14px' }}>
-                    <strong>{test.avgLatencyMs}ms</strong> avg
-                  </span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

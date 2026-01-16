@@ -1,23 +1,14 @@
 import { useState } from "react";
-import { Code, Plus, Trash2, ChevronDown, ChevronUp } from "lucide-react";
-
-const API_BASE = "http://localhost:8080";
-
-const createScript = async (url) => {
-  const response = await fetch(`${API_BASE}/scripts`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ url })
-  });
-  if (!response.ok) throw new Error('Failed to create script');
-  return response.json();
-};
+import { Code, Plus, Trash2, ChevronDown, ChevronUp, CheckCircle } from "lucide-react";
+import { createScript } from "../api/scriptApi";
+import { useNavigate } from "react-router-dom";
 
 const HTTP_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'];
 
 const AUTH_TYPES = ['none', 'basic', 'bearer', 'oauth2'];
 
 export default function CreateScript() {
+  const navigate = useNavigate();
   const [mode, setMode] = useState("simple");
   const [url, setUrl] = useState("");
   
@@ -37,6 +28,7 @@ export default function CreateScript() {
   
   const [script, setScript] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [expandedStep, setExpandedStep] = useState(0);
 
   const submit = async () => {
@@ -46,10 +38,20 @@ export default function CreateScript() {
     }
 
     setLoading(true);
+    setError(null);
+    
     try {
-      const res = await createScript(url);
-      setScript(res);
+      const scriptData = await createScript(url); // Returns script directly
+      console.log('Created script:', scriptData);
+      setScript(scriptData);
+      
+      // Show success message and redirect after a moment
+      setTimeout(() => {
+        navigate('/scripts');
+      }, 2000);
     } catch (err) {
+      console.error('Failed to create script:', err);
+      setError(err.message);
       alert("Failed to create script: " + err.message);
     } finally {
       setLoading(false);
@@ -138,6 +140,12 @@ export default function CreateScript() {
     <div className="page">
       <h1 className="page-title">Create Test Script</h1>
 
+      {error && (
+        <div className="card" style={{ background: 'rgba(220, 38, 38, 0.1)', border: '1px solid #dc2626', marginBottom: '16px' }}>
+          <p style={{ color: '#dc2626' }}>{error}</p>
+        </div>
+      )}
+
       {/* Mode Selector */}
       <div className="mode-selector">
         <button
@@ -171,7 +179,7 @@ export default function CreateScript() {
 
           <button
             onClick={submit}
-            disabled={loading}
+            disabled={loading || !url}
             className="btn-primary"
           >
             {loading ? "Generating..." : "Generate Script"}
@@ -351,73 +359,6 @@ export default function CreateScript() {
                     </div>
                   )}
 
-                  {/* Checks/Assertions */}
-                  <div className="form-section" style={{ marginTop: '16px' }}>
-                    <h4>Checks (Assertions)</h4>
-                    {step.checks.map((check, checkIndex) => (
-                      <div key={checkIndex} style={{ marginBottom: '8px' }}>
-                        <div className="form-row">
-                          <input
-                            type="text"
-                            placeholder="Description (e.g., status is 200)"
-                            value={check.description}
-                            onChange={(e) => updateCheck(stepIndex, checkIndex, 'description', e.target.value)}
-                            className="input-primary"
-                          />
-                          <button
-                            onClick={() => removeCheck(stepIndex, checkIndex)}
-                            className="btn-icon btn-danger"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                        <input
-                          type="text"
-                          placeholder="Expression (e.g., r.status === 200)"
-                          value={check.expression}
-                          onChange={(e) => updateCheck(stepIndex, checkIndex, 'expression', e.target.value)}
-                          className="input-primary"
-                          style={{ marginTop: '4px' }}
-                        />
-                      </div>
-                    ))}
-                    <button onClick={() => addCheck(stepIndex)} className="btn-secondary">
-                      Add Check
-                    </button>
-                  </div>
-
-                  {/* Variable Extraction */}
-                  <div className="form-section" style={{ marginTop: '16px' }}>
-                    <h4>Extract Variables</h4>
-                    {step.extract.map((extractor, extractIndex) => (
-                      <div key={extractIndex} className="form-row">
-                        <input
-                          type="text"
-                          placeholder="Variable Name"
-                          value={extractor.name}
-                          onChange={(e) => updateExtractor(stepIndex, extractIndex, 'name', e.target.value)}
-                          className="input-primary"
-                        />
-                        <input
-                          type="text"
-                          placeholder="JSON Path (e.g., data.token)"
-                          value={extractor.jsonPath}
-                          onChange={(e) => updateExtractor(stepIndex, extractIndex, 'jsonPath', e.target.value)}
-                          className="input-primary"
-                        />
-                        <button
-                          onClick={() => removeExtractor(stepIndex, extractIndex)}
-                          className="btn-icon btn-danger"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    ))}
-                    <button onClick={() => addExtractor(stepIndex)} className="btn-secondary">
-                      Add Extractor
-                    </button>
-                  </div>
-
                   {/* Think Time */}
                   <div className="form-section" style={{ marginTop: '16px' }}>
                     <h4>Think Time</h4>
@@ -454,8 +395,8 @@ export default function CreateScript() {
       {script && (
         <div className="card" style={{ marginTop: '16px' }}>
           <h2 className="card-title">
-            <Code size={20} />
-            Generated Script
+            <CheckCircle size={20} style={{ color: '#22c55e' }} />
+            Script Created Successfully!
           </h2>
           
           <div className="script-preview">
@@ -465,6 +406,10 @@ export default function CreateScript() {
           <div className="alert alert-success">
             ✅ Script created successfully! ID: <strong>{script.id}</strong>
           </div>
+
+          <p className="text-muted" style={{ marginTop: '16px' }}>
+            Redirecting to scripts page...
+          </p>
         </div>
       )}
     </div>
